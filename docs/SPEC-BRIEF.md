@@ -30,14 +30,14 @@ UI reference: the signed-off mock (login → my cameras → fleet → assign/rem
 
 ## Domain model (ubiquitous language)
 
-| Term                  | Meaning                                                              |
-| --------------------- | -------------------------------------------------------------------- |
-| **Camera**            | An Axis device in the fleet. Exists independently of any user.       |
-| **User**              | An operator who logs in. Identified by `username`.                   |
-| **Fleet**             | All cameras known to the system.                                     |
+| Term                  | Meaning                                                               |
+| --------------------- | --------------------------------------------------------------------- |
+| **Camera**            | An Axis device in the fleet. Exists independently of any user.        |
+| **User**              | An operator who logs in. Identified by `username`.                    |
+| **Fleet**             | All cameras known to the system.                                      |
 | **Assignment**        | Many-to-many link User↔Camera. Grants a user visibility of a camera. |
-| **Unassigned camera** | A fleet camera not linked to the current user — assignable.          |
-| **Token**             | Opaque string returned by `login`, maps to exactly one `userId`.     |
+| **Unassigned camera** | A fleet camera not linked to the current user — assignable.           |
+| **Token**             | Opaque string returned by `login`, maps to exactly one `userId`.      |
 
 ## Schema (target)
 

@@ -1,0 +1,79 @@
+type Query {
+  """
+  Every camera on the network, whether or not it is assigned to anyone.
+  """
+  cameras: [Camera!]!
+
+  """
+  All operators. Populates the sign-in screen.
+  """
+  users: [User!]!
+
+  """
+  The signed-in operator, or null when the request carries no valid token.
+  """
+  me: User
+}
+
+type Mutation {
+  """
+  Exchanges a username for a bearer token. No password by design — see docs/SPEC-BRIEF.md.
+  """
+  login(username: String!): AuthPayload!
+
+  """
+  Registers a new camera on the network. Provided with the starter; unchanged.
+  """
+  addCamera(name: String!, niceName: String, address: String!): Camera!
+
+  """
+  Grants an operator access to a camera. Idempotent.
+  """
+  assignCameraToUser(userId: ID!, cameraId: ID!): User!
+
+  """
+  Revokes an operator's access to a camera. Idempotent, and never deletes the camera.
+  """
+  unassignCameraFromUser(userId: ID!, cameraId: ID!): User!
+}
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+type User {
+  id: ID!
+  username: String!
+  displayName: String!
+
+  """
+  Cameras assigned to this operator.
+  """
+  cameras: [Camera!]!
+}
+
+type Camera {
+  id: ID!
+
+  """
+  Axis model designation, e.g. P3265-LVE.
+  """
+  name: String!
+
+  """
+  Operator-chosen label. Null when never set.
+  """
+  niceName: String
+  address: String!
+
+  """
+  Product photo path, served by the frontend.
+  """
+  imageUrl: String
+
+  """
+  Every operator this camera is assigned to. A camera may be shared.
+  """
+  users: [User!]!
+}

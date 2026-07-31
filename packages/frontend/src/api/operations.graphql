@@ -1,0 +1,65 @@
+fragment CameraFields on Camera {
+  id
+  name
+  niceName
+  address
+  imageUrl
+}
+
+query Me {
+  me {
+    id
+    username
+    displayName
+    cameras {
+      ...CameraFields
+    }
+  }
+}
+
+query Users {
+  users {
+    id
+    username
+    displayName
+  }
+}
+
+query Fleet {
+  cameras {
+    ...CameraFields
+    users {
+      id
+      displayName
+    }
+  }
+}
+
+mutation Login($username: String!) {
+  login(username: $username) {
+    token
+    user {
+      id
+      username
+      displayName
+    }
+  }
+}
+
+mutation AssignCamera($userId: ID!, $cameraId: ID!) {
+  assignCameraToUser(userId: $userId, cameraId: $cameraId) {
+    id
+    cameras {
+      ...CameraFields
+    }
+  }
+}
+
+mutation UnassignCamera($userId: ID!, $cameraId: ID!) {
+  unassignCameraFromUser(userId: $userId, cameraId: $cameraId) {
+    id
+    cameras {
+      ...CameraFields
+    }
+  }
+}

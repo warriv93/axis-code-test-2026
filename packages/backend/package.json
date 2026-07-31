@@ -7,7 +7,8 @@
     "start": "ts-node src/main.ts",
     "build": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "schema": "node --loader ts-node/esm ./src/scripts/printSchema.ts"
   },
   "author": "",
   "license": "ISC",
