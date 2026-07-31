@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "tsc --build --verbose tsconfig.json",
+    "build": "npm run build -w=backend && npm run build -w=frontend",
     "start:backend": "npm run dev -w=backend",
     "start:frontend": "npm run dev -w=frontend",
     "dev": "concurrently \"npm:start:*\"",
-    "lint": "prettier . --check"
+    "test": "npm run test -w=backend && npm run test -w=frontend",
+    "test:e2e": "playwright test",
+    "lint": "prettier . --check",
+    "format": "prettier . --write"
   },
   "workspaces": [
     "packages/backend",
