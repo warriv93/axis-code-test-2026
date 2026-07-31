@@ -64,6 +64,7 @@ export function Dashboard({ user }: DashboardProps) {
 
   const { toggle, busyCameraId } = useCameraAssignment({
     userId: user.id,
+    assignedCameras: user.cameras,
     onSuccess: (m) => notify(m, "success"),
     onError: (m) => notify(m, "error"),
   });

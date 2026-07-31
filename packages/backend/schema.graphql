@@ -1,12 +1,8 @@
 type Query {
-  """
-  Every camera on the network, whether or not it is assigned to anyone.
-  """
+  """Every camera on the network, whether or not it is assigned to anyone."""
   cameras: [Camera!]!
 
-  """
-  All operators. Populates the sign-in screen.
-  """
+  """All operators. Populates the sign-in screen."""
   users: [User!]!
 
   """
@@ -26,9 +22,7 @@ type Mutation {
   """
   addCamera(name: String!, niceName: String, address: String!): Camera!
 
-  """
-  Grants an operator access to a camera. Idempotent.
-  """
+  """Grants an operator access to a camera. Idempotent."""
   assignCameraToUser(userId: ID!, cameraId: ID!): User!
 
   """
@@ -47,33 +41,23 @@ type User {
   username: String!
   displayName: String!
 
-  """
-  Cameras assigned to this operator.
-  """
+  """Cameras assigned to this operator."""
   cameras: [Camera!]!
 }
 
 type Camera {
   id: ID!
 
-  """
-  Axis model designation, e.g. P3265-LVE.
-  """
+  """Axis model designation, e.g. P3265-LVE."""
   name: String!
 
-  """
-  Operator-chosen label. Null when never set.
-  """
+  """Operator-chosen label. Null when never set."""
   niceName: String
   address: String!
 
-  """
-  Product photo path, served by the frontend.
-  """
+  """Product photo path, served by the frontend."""
   imageUrl: String
 
-  """
-  Every operator this camera is assigned to. A camera may be shared.
-  """
+  """Every operator this camera is assigned to. A camera may be shared."""
   users: [User!]!
 }

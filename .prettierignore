@@ -4,5 +4,11 @@ package-lock.json
 playwright-report
 test-results
 .playwright-mcp
+
+# Generated artefacts — formatting them would fight their generators and make
+# the CI drift check fail on every run.
+packages/backend/schema.graphql
 packages/frontend/src/api/generated.ts
+packages/backend/src/graphql/__snapshots__
+
 packages/frontend/public/camera-images
