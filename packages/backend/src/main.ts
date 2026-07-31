@@ -3,7 +3,8 @@ import { createServer } from "node:http";
 import { createAppSchema } from "./graphql/schema.js";
 import { createInMemoryStore } from "./repositories/inMemoryStore.js";
 import { seed } from "./domain/seed.js";
-import type { GraphQLContext } from "./graphql/context.js";
+import { createTokenStore } from "./auth/tokenStore.js";
+import { buildContext } from "./auth/buildContext.js";
 
 /**
  * Composition root: the only place that picks concrete implementations.
@@ -11,12 +12,13 @@ import type { GraphQLContext } from "./graphql/context.js";
  * store swappable for a database without touching a resolver.
  */
 const store = createInMemoryStore(seed());
+const tokens = createTokenStore();
 
 const yoga = createYoga({
   schema: createAppSchema(),
-  context: (): GraphQLContext => ({ store }),
+  context: ({ request }) => buildContext(request, { store, tokens }),
   cors: {
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "http://localhost:4173"],
     credentials: true,
   },
 });

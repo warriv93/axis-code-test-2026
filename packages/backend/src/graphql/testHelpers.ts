@@ -7,10 +7,12 @@ import { seed } from "../domain/seed.js";
 import { createAppSchema } from "./schema.js";
 import type { GraphQLContext } from "./context.js";
 import type { UserId } from "../domain/types.js";
+import { createTokenStore, type TokenStore } from "../auth/tokenStore.js";
 
 export interface TestHarness {
   schema: GraphQLSchema;
   store: Store;
+  tokens: TokenStore;
   /** Runs an operation against the real schema. No resolver is mocked. */
   run: (
     source: string,
@@ -24,13 +26,19 @@ export interface TestHarness {
 /** Builds a server with its own isolated store for a single test. */
 export function createTestHarness(): TestHarness {
   const store = createInMemoryStore(seed());
+  const tokens = createTokenStore();
   const schema = createAppSchema();
 
   return {
     schema,
     store,
+    tokens,
     run: async (source, options = {}) => {
-      const contextValue: GraphQLContext = { store, userId: options.as };
+      const contextValue: GraphQLContext = {
+        store,
+        tokens,
+        userId: options.as,
+      };
       const result = await graphql({
         schema,
         source,

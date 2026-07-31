@@ -1,5 +1,6 @@
 import type { UserId } from "../domain/types.js";
 import type { Store } from "../repositories/inMemoryStore.js";
+import type { TokenStore } from "../auth/tokenStore.js";
 
 /**
  * What every resolver is handed.
@@ -10,5 +11,6 @@ import type { Store } from "../repositories/inMemoryStore.js";
  */
 export interface GraphQLContext {
   store: Store;
+  tokens: TokenStore;
   userId?: UserId;
 }

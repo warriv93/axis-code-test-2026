@@ -1,5 +1,27 @@
-import type { Camera, User } from "../domain/types.js";
+import type { Camera, CameraId, User, UserId } from "../domain/types.js";
 import type { GraphQLContext } from "./context.js";
+import { errors } from "./errors.js";
+
+/**
+ * Guard shared by both assignment mutations.
+ *
+ * Order matters: authenticate, then authorize, then check existence. Checking
+ * existence first would let an anonymous caller probe which ids are real.
+ */
+function authorizeAssignment(
+  ctx: GraphQLContext,
+  userId: UserId,
+  cameraId: CameraId,
+): { user: User } {
+  if (!ctx.userId) throw errors.unauthenticated();
+  if (ctx.userId !== userId) throw errors.forbidden();
+
+  const user = ctx.store.users.byId(userId);
+  if (!user) throw errors.notFound("User");
+  if (!ctx.store.cameras.byId(cameraId)) throw errors.notFound("Camera");
+
+  return { user };
+}
 
 /**
  * Resolvers are deliberately thin: they translate GraphQL arguments into
@@ -24,6 +46,39 @@ export const resolvers = {
   },
 
   Mutation: {
+    login: (
+      _parent: unknown,
+      args: { username: string },
+      ctx: GraphQLContext,
+    ): { token: string; user: User } => {
+      const user = ctx.store.users.byUsername(args.username);
+      // The message deliberately does not echo the username back, so this
+      // cannot be used to enumerate which accounts exist.
+      if (!user) throw errors.unauthenticated("Unknown username.");
+
+      return { token: ctx.tokens.issue(user.id), user };
+    },
+
+    assignCameraToUser: (
+      _parent: unknown,
+      args: { userId: UserId; cameraId: CameraId },
+      ctx: GraphQLContext,
+    ): User => {
+      const { user } = authorizeAssignment(ctx, args.userId, args.cameraId);
+      ctx.store.assignments.assign(args.userId, args.cameraId);
+      return user;
+    },
+
+    unassignCameraFromUser: (
+      _parent: unknown,
+      args: { userId: UserId; cameraId: CameraId },
+      ctx: GraphQLContext,
+    ): User => {
+      const { user } = authorizeAssignment(ctx, args.userId, args.cameraId);
+      ctx.store.assignments.unassign(args.userId, args.cameraId);
+      return user;
+    },
+
     addCamera: (
       _parent: unknown,
       args: { name: string; niceName?: string | null; address: string },
