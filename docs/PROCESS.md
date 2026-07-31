@@ -84,7 +84,7 @@ mine.
 
 ### Phase 4 — Verification, looped until clean
 
-A five-gate check run before every push: **lint → build → codegen drift → 71 unit/integration
+A five-gate check run before every push: **lint → build → codegen drift → 78 unit/integration
 tests → 9 e2e tests**. Failures went back into the loop rather than being noted and shipped.
 
 ### Phase 5 — Honest debrief
@@ -105,6 +105,7 @@ to the layer above**:
 | Theme toggle mutated state the provider never saw                    | Reviewing the composition, not the test      |
 | Server crashed on boot while every test passed                       | Smoke-testing the real server over HTTP      |
 | CI would have failed on its first run (prettier vs. codegen)         | Running the full gate locally before pushing |
+| A test that passed for the wrong reason and proved nothing           | Deliberately breaking the code it covered    |
 
 The pattern is the point: **green tests are necessary, not sufficient.** Three of the four
 were found by exercising the real thing — a browser, an HTTP request, the actual CI sequence.

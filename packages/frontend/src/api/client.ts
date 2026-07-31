@@ -28,7 +28,16 @@ export function createApolloClient() {
         // Cameras and users are normalised by id, so a mutation that returns
         // an updated User automatically refreshes every list showing it.
         Camera: { keyFields: ["id"] },
-        User: { keyFields: ["id"] },
+        User: {
+          keyFields: ["id"],
+          fields: {
+            // An assignment change returns the user's complete camera list, so
+            // replacing is correct. Saying so explicitly silences Apollo's
+            // "cache data may be lost" warning, which would otherwise be a
+            // real signal sitting in the console being ignored.
+            cameras: { merge: false },
+          },
+        },
       },
     }),
   });

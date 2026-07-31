@@ -137,8 +137,14 @@ fires on `:focus-visible`, so keyboard users get the same signal.
 | E2E         | Playwright              | The whole flow against the live server                      |
 | A11y        | axe-core inside the e2e | Zero serious or critical WCAG 2.1 AA violations             |
 
-**71 unit/integration/component tests and 9 end-to-end tests.** Written before the code they
+**78 unit/integration/component tests and 9 end-to-end tests.** Written before the code they
 cover, one commit per passing slice.
+
+The optimistic-assignment hook is tested directly rather than only through the end-to-end
+run, because a failed rollback would leave the UI claiming the operator has a camera the
+server just refused them. Those tests were themselves checked by breaking the hook four
+ways — no optimistic response, swallowed error, never-cleared busy flag — and confirming the
+right test failed each time.
 
 ---
 
