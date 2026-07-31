@@ -245,6 +245,43 @@ at 7,000.
   and it invites the follow-up question you actually want ("how would you paginate a
   many-to-many list?").
 
+**Short answer to that follow-up.** Cursor-based, Relay-shaped, paginating the join:
+
+```graphql
+type User {
+  cameras(first: Int!, after: String, filter: CameraFilter): CameraConnection!
+}
+
+type CameraConnection {
+  edges: [CameraEdge!]!
+  pageInfo: PageInfo! # hasNextPage, endCursor
+  totalCount: Int # opt-in: this is the expensive field
+}
+```
+
+Four points, in the order they matter:
+
+1. **Cursors, not `offset`/`limit`.** `OFFSET 10000` makes the database walk 10,000 rows it
+   will throw away, and any insert or deletion between page loads silently shifts the window
+   so the operator skips or sees duplicate cameras. A cursor is an opaque encoding of a stable
+   sort key — `WHERE (name, id) > ($lastName, $lastId) ORDER BY name, id LIMIT $first` — which
+   an index satisfies in constant time per page, however deep you are.
+2. **The Relay connection shape earns its verbosity.** It is what Apollo's
+   `relayStylePagination()` expects, so "load more" becomes a cache policy rather than a
+   hand-written merge function — and hand-written merges are exactly where duplicated and
+   vanishing rows come from.
+3. **Paginate the assignment, not the camera.** Because `cameras` is a field on `User`, the
+   cursor runs over the join, so filtering and paging stay in one indexed query instead of
+   fetching a user's cameras and then discarding most of them. The genuinely hard case is
+   paging that nested list for _many_ users at once — the fix is a window function
+   (`ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY name, id)`) to get top-N-per-user in a
+   single round trip, batched through DataLoader, rather than one query per parent.
+4. **Make `totalCount` optional.** It is a full `COUNT(*)` behind a pretty name; `hasNextPage`
+   answers what the UI usually needs by fetching `first + 1` rows and discarding the extra.
+
+The honest caveat: at 7 cameras this is all cost and no benefit, which is why the current
+implementation filters client-side.
+
 ### 5. Authorization as policy
 
 Roles and a `@auth` schema directive, once "can only manage your own" stops being the only
