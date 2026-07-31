@@ -206,8 +206,7 @@ right test failed each time.
 
 - **GraphQL subscriptions** for live multi-tab sync — the most impressive option and the one
   most likely to eat an hour and destabilise the e2e. Cut on time discipline.
-- **DataLoader / N+1 batching** — meaningless against in-memory arrays. The honest position is
-  knowing exactly where it goes once a database sits behind the repositories.
+- **DataLoader / N+1 batching** — meaningless against in-memory arrays. Behind a database I'd add DataLoader in the request context, and my repositories would need byIds batch methods or it wouldn't actually batch."
 - **Relay global IDs / `Node`** — over-engineering at seven cameras.
 - **Drag-and-drop assignment** — flashier, and worse for keyboard and screen-reader users.
 
@@ -247,55 +246,43 @@ Implement the three repository interfaces against Postgres, making them return p
 domain layer and the schema are untouched. Add DataLoader at that point, and it will actually
 mean something.
 
-- **Benefit:** data survives a restart, and more than one server instance can serve the same
-  fleet.
-- **Why that matters:** without it there is no deployment worth the name. Every deploy, crash
-  or autoscale event silently erases every camera assignment — in a system that governs who
-  may view surveillance footage, access quietly disappears with no warning and no way to
-  restore it. Being single-process also rules out rolling deploys, failover and horizontal
-  scale, so this is the precondition for the other four items rather than a feature beside
-  them.
+- **Benefit:** data survives a restart, and more than one instance can serve the same fleet.
+- **Why that matters:** today every deploy or crash silently erases all access grants, with no
+  warning and no way to restore them. Single-process also rules out rolling deploys and
+  failover — which makes this the precondition for the other four, not a peer of them.
 
 ### 2. Real auth
 
 Password hashing or SSO, short-lived tokens in httpOnly cookies, plus refresh and revocation.
 
-- **Benefit:** sessions can actually be ended, and a token stops being readable by any script
-  on the page.
-- **Why that matters:** today a token is valid until the server restarts and cannot be
-  withdrawn, so someone who leaves the organisation keeps working access to the camera fleet
-  until a reboot happens to occur. And because the token sits in `localStorage`, any script
-  that reaches the page — a compromised dependency, a single XSS — can lift it and act as
-  that operator. For a system whose entire job is deciding who may watch a camera, "access
-  cannot be revoked" and "a session can be stolen" are the two failures that matter most.
+- **Benefit:** sessions can be ended, and a token stops being readable by page scripts.
+- **Why that matters:** a token is currently valid until the server restarts, so someone who
+  leaves keeps fleet access until a reboot happens to occur; and sitting in `localStorage`, it
+  can be lifted by any injected script. For a system that exists to decide who may watch a
+  camera, unrevocable access and stealable sessions are the two failures that count.
 
 ### 3. Subscriptions
 
 `cameraAssignmentChanged` over SSE, so an operations room stays in sync.
 
-- **Benefit:** two operators looking at the same fleet never disagree about who can see what,
-  with no reload required.
-- **Why that matters:** in a control room several people work the same site at once. If one
-  revokes access to a camera and a colleague's screen still lists it, that colleague is acting
-  on something untrue — believing coverage exists where it does not, or that someone can see a
-  feed they no longer can. Manual refresh makes the window of wrongness unbounded and
-  invisible; pushing the change makes it a few hundred milliseconds and self-correcting.
-  Mechanically it is a PubSub in the composition root and a publish after each mutation, over
-  SSE rather than WebSockets because it is plain HTTP that reconnects itself.
+- **Benefit:** operators on the same site stop disagreeing about who can see what, with no
+  reload.
+- **Why that matters:** if one revokes access and a colleague's screen still lists the camera,
+  that colleague is acting on something untrue — believing coverage exists where it does not.
+  Manual refresh leaves that window unbounded and invisible; pushing bounds it to milliseconds.
+  Mechanically: a PubSub in the composition root, a publish after each mutation, over SSE
+  because it is plain HTTP that reconnects itself.
 
 ### 4. Scale the list
 
 Pagination and server-side filtering; the client-side filter is honest at 7 cameras and wrong
 at 7,000.
 
-- **Benefit:** the page stays fast on a real fleet, and the browser stops downloading rows
-  nobody will look at.
-- **Why that matters:** transfer size and memory currently grow linearly with the deployment,
-  so the app degrades fastest for the largest sites — the ones that matter most. The subtler
-  cost is correctness: filtering client-side can only search what has already been
-  downloaded, so the moment a fleet outgrows one payload the filter starts returning
-  confidently incomplete results. Paging on the server keeps response size flat regardless of
-  fleet size and makes the filter authoritative rather than best-effort.
+- **Benefit:** response size stays flat however large the fleet grows.
+- **Why that matters:** payload and memory currently scale with the deployment, so the app
+  degrades fastest for the biggest sites. The subtler cost is correctness — a client-side
+  filter can only search what was already downloaded, so past one payload it returns
+  confidently incomplete results.
 
 **How to do this well.** Cursor-based, Relay-shaped, paginating the join:
 
@@ -339,14 +326,11 @@ filters client-side.
 Roles and a `@auth` schema directive, once "can only manage your own" stops being the only
 rule.
 
-- **Benefit:** new rules arrive without editing resolvers, and enforcement stays consistent
-  because it is declared next to the field it protects.
-- **Why that matters:** authorization written inside resolver bodies drifts. Someone adds a
-  mutation, forgets the guard, and nothing complains — the gap is invisible until it is found
-  from the outside. Declaring the rule on the field makes an unprotected field visible in the
-  schema itself, and turns "who may do what" into one reviewable artefact instead of an answer
-  you assemble by reading every resolver. The pressure for this grows with the rule count:
-  administrators, per-site scoping, read versus manage.
+- **Benefit:** rules live next to the field they protect, so enforcement stays consistent.
+- **Why that matters:** guards written inside resolver bodies drift — someone adds a mutation,
+  forgets the guard, and nothing complains until it is found from outside. On the field, an
+  unprotected one is visible in the schema itself, and "who may do what" becomes a single
+  reviewable artefact rather than something you reconstruct by reading every resolver.
 
 ---
 
