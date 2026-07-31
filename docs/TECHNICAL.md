@@ -53,7 +53,51 @@ so it is testable as plain functions.
 
 **Repositories are injected, never imported.** `createInMemoryStore(seed())` is called once in
 `main.ts` and once per test. No test can leak state into another, and swapping in a database
-means writing one new implementation of three interfaces and changing one line.
+means writing one new implementation of three interfaces.
+
+<details>
+<summary>What adding a Postgres store would actually take</summary>
+
+Write one new file returning the same `Store` shape:
+
+```ts
+// repositories/postgresStore.ts
+export function createPostgresStore(pool: Pool): Store {
+  return {
+    cameras: {
+      all: () => pool.query("SELECT * FROM cameras").then((r) => r.rows),
+      byId: (id) =>
+        pool.query("SELECT * FROM cameras WHERE id = $1", [id]).then(one),
+      // …
+    },
+    users: {
+      /* … */
+    },
+    assignments: {
+      /* … */
+    },
+  };
+}
+```
+
+Then change one line in the composition root:
+
+```diff
+- const store = createInMemoryStore(seed());
++ const store = createPostgresStore(pool);
+```
+
+**The honest caveat:** the interfaces are currently synchronous (`all(): Camera[]`), and no
+database can satisfy that. So the real change is that the interfaces return `Promise<…>`, and
+the six resolver branches that inspect a repository result — `me`, `login`, the two assignment
+guards, `User.cameras`, `Camera.users` — become `async`/`await`. The rest is untouched: the
+domain layer, the schema, every resolver that just forwards a result (graphql-js already
+awaits whatever a resolver returns), and the tests, which only ever see the interface.
+
+I left them synchronous deliberately, because an in-memory store returning promises for no
+reason is noise. Worth knowing that the seam is right but not entirely free.
+
+</details>
 
 **Transport is decoded once, at the edge.** `buildContext` turns the `Authorization` header
 into `context.userId`. No resolver ever sees a header.
@@ -199,14 +243,16 @@ Five things, in the order I would do them.
 
 ### 1. Persistence
 
-Implement the three repository interfaces against Postgres; nothing above them changes. Add
-DataLoader at that point, and it will actually mean something.
+Implement the three repository interfaces against Postgres, making them return promises; the
+domain layer and the schema are untouched. Add DataLoader at that point, and it will actually
+mean something.
 
 - **Benefit:** data survives a restart, and more than one server instance can serve the same
   fleet — the prerequisite for every other item on this list.
 - **Why it's a good talking point:** it turns the architecture from a claim into a
-  demonstration. "Swapping the store touches one file" is only worth saying if you can point
-  at the interface that makes it true. It also earns the right to discuss N+1 concretely —
+  demonstration — including its limits. "Swapping the store is one new file plus making the
+  interfaces async" is a more useful claim than "one line", because it is checkable, and
+  being able to name the exact six resolvers affected shows you have actually traced it. It also earns the right to discuss N+1 concretely —
   `User.cameras` across 500 users is a real query-per-row problem, where today it is array
   indexing and DataLoader would be theatre.
 
