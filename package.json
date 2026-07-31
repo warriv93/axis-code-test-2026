@@ -1,0 +1,30 @@
+{
+  "name": "axis-code-test",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc --build --verbose tsconfig.json",
+    "start:backend": "npm run dev -w=backend",
+    "start:frontend": "npm run dev -w=frontend",
+    "dev": "concurrently \"npm:start:*\"",
+    "lint": "prettier . --check"
+  },
+  "workspaces": [
+    "packages/backend",
+    "packages/frontend"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@tsconfig/recommended": "^1.0.6",
+    "@types/node": "^20.14.2",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "prettier": "3.3.2",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5"
+  }
+}
