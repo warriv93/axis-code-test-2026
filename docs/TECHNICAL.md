@@ -56,7 +56,7 @@ so it is testable as plain functions.
 means writing one new implementation of three interfaces.
 
 <details>
-<summary>What adding a Postgres store would actually take</summary>
+<summary>What adding a Postgres store (Database) would actually take</summary>
 
 Write one new file returning the same `Store` shape:
 
@@ -248,13 +248,13 @@ domain layer and the schema are untouched. Add DataLoader at that point, and it 
 mean something.
 
 - **Benefit:** data survives a restart, and more than one server instance can serve the same
-  fleet — the prerequisite for every other item on this list.
-- **Why it's a good talking point:** it turns the architecture from a claim into a
-  demonstration — including its limits. "Swapping the store is one new file plus making the
-  interfaces async" is a more useful claim than "one line", because it is checkable, and
-  being able to name the exact six resolvers affected shows you have actually traced it. It also earns the right to discuss N+1 concretely —
-  `User.cameras` across 500 users is a real query-per-row problem, where today it is array
-  indexing and DataLoader would be theatre.
+  fleet.
+- **Why that matters:** without it there is no deployment worth the name. Every deploy, crash
+  or autoscale event silently erases every camera assignment — in a system that governs who
+  may view surveillance footage, access quietly disappears with no warning and no way to
+  restore it. Being single-process also rules out rolling deploys, failover and horizontal
+  scale, so this is the precondition for the other four items rather than a feature beside
+  them.
 
 ### 2. Real auth
 
@@ -262,22 +262,26 @@ Password hashing or SSO, short-lived tokens in httpOnly cookies, plus refresh an
 
 - **Benefit:** sessions can actually be ended, and a token stops being readable by any script
   on the page.
-- **Why it's a good talking point:** it shows you know precisely which corner you cut and what
-  it costs. Naming the specific threat — "XSS can read `localStorage`, an httpOnly cookie it
-  cannot" — reads as understanding; "I'd add real auth" reads as a placeholder.
+- **Why that matters:** today a token is valid until the server restarts and cannot be
+  withdrawn, so someone who leaves the organisation keeps working access to the camera fleet
+  until a reboot happens to occur. And because the token sits in `localStorage`, any script
+  that reaches the page — a compromised dependency, a single XSS — can lift it and act as
+  that operator. For a system whose entire job is deciding who may watch a camera, "access
+  cannot be revoked" and "a session can be stolen" are the two failures that matter most.
 
 ### 3. Subscriptions
 
 `cameraAssignmentChanged` over SSE, so an operations room stays in sync.
 
-- **Benefit:** two operators looking at the same fleet never disagree about who can see what;
-  no reload required.
-- **Why it's a good talking point:** it is domain-aware rather than tech-led — stale access
-  state in a control room is a safety problem, not a UX annoyance. And because it was scoped
-  and then deliberately cut, it demonstrates judgment twice: knowing exactly where it plugs in
-  (a PubSub in the composition root, a publish after each mutation, SSE over WebSockets
-  because it is plain HTTP that reconnects itself) and knowing a flaky e2e suite costs more
-  than a live-update demo gains.
+- **Benefit:** two operators looking at the same fleet never disagree about who can see what,
+  with no reload required.
+- **Why that matters:** in a control room several people work the same site at once. If one
+  revokes access to a camera and a colleague's screen still lists it, that colleague is acting
+  on something untrue — believing coverage exists where it does not, or that someone can see a
+  feed they no longer can. Manual refresh makes the window of wrongness unbounded and
+  invisible; pushing the change makes it a few hundred milliseconds and self-correcting.
+  Mechanically it is a PubSub in the composition root and a publish after each mutation, over
+  SSE rather than WebSockets because it is plain HTTP that reconnects itself.
 
 ### 4. Scale the list
 
@@ -286,12 +290,14 @@ at 7,000.
 
 - **Benefit:** the page stays fast on a real fleet, and the browser stops downloading rows
   nobody will look at.
-- **Why it's a good talking point:** it is a quantified self-critique. Stating where your own
-  solution breaks, with a number attached, is more convincing than any feature you could add —
-  and it invites the follow-up question you actually want ("how would you paginate a
-  many-to-many list?").
+- **Why that matters:** transfer size and memory currently grow linearly with the deployment,
+  so the app degrades fastest for the largest sites — the ones that matter most. The subtler
+  cost is correctness: filtering client-side can only search what has already been
+  downloaded, so the moment a fleet outgrows one payload the filter starts returning
+  confidently incomplete results. Paging on the server keeps response size flat regardless of
+  fleet size and makes the filter authoritative rather than best-effort.
 
-**Short answer to that follow-up.** Cursor-based, Relay-shaped, paginating the join:
+**How to do this well.** Cursor-based, Relay-shaped, paginating the join:
 
 ```graphql
 type User {
@@ -325,8 +331,8 @@ Four points, in the order they matter:
 4. **Make `totalCount` optional.** It is a full `COUNT(*)` behind a pretty name; `hasNextPage`
    answers what the UI usually needs by fetching `first + 1` rows and discarding the extra.
 
-The honest caveat: at 7 cameras this is all cost and no benefit, which is why the current
-implementation filters client-side.
+At 7 cameras all of this is cost with no benefit, which is why the current implementation
+filters client-side.
 
 ### 5. Authorization as policy
 
@@ -335,11 +341,12 @@ rule.
 
 - **Benefit:** new rules arrive without editing resolvers, and enforcement stays consistent
   because it is declared next to the field it protects.
-- **Why it's a good talking point:** it pays off a decision made in the first hour. Because
-  the mutations take an explicit `userId` rather than acting implicitly on "me", the guard is
-  already a real authorization check with a testable `FORBIDDEN` path — so this is an
-  evolution of existing code, not a rewrite. Declarative versus imperative authorization is
-  also a genuinely senior conversation.
+- **Why that matters:** authorization written inside resolver bodies drifts. Someone adds a
+  mutation, forgets the guard, and nothing complains — the gap is invisible until it is found
+  from the outside. Declaring the rule on the field makes an unprotected field visible in the
+  schema itself, and turns "who may do what" into one reviewable artefact instead of an answer
+  you assemble by reading every resolver. The pressure for this grows with the rule count:
+  administrators, per-site scoping, read versus manage.
 
 ---
 
