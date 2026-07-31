@@ -189,12 +189,109 @@ full gate locally before pushing.
 
 ## 9. If this were going to production
 
-1. **Persistence** — implement the three repository interfaces against Postgres; nothing above
-   them changes. Add DataLoader at that point, and it will actually mean something.
-2. **Real auth** — password hashing or SSO, short-lived tokens in httpOnly cookies, refresh
-   and revocation.
-3. **Subscriptions** — `cameraAssignmentChanged` over SSE, so an operations room stays in sync.
-4. **Scale the list** — pagination and server-side filtering; the client-side filter is honest
-   at 7 cameras and wrong at 7,000.
-5. **Authorization as policy** — roles and a `@auth` schema directive once "can only manage
-   your own" stops being the only rule.
+Five things, in the order I would do them.
+
+### 1. Persistence
+
+Implement the three repository interfaces against Postgres; nothing above them changes. Add
+DataLoader at that point, and it will actually mean something.
+
+- **Benefit:** data survives a restart, and more than one server instance can serve the same
+  fleet — the prerequisite for every other item on this list.
+- **Why it's a good talking point:** it turns the architecture from a claim into a
+  demonstration. "Swapping the store touches one file" is only worth saying if you can point
+  at the interface that makes it true. It also earns the right to discuss N+1 concretely —
+  `User.cameras` across 500 users is a real query-per-row problem, where today it is array
+  indexing and DataLoader would be theatre.
+
+### 2. Real auth
+
+Password hashing or SSO, short-lived tokens in httpOnly cookies, plus refresh and revocation.
+
+- **Benefit:** sessions can actually be ended, and a token stops being readable by any script
+  on the page.
+- **Why it's a good talking point:** it shows you know precisely which corner you cut and what
+  it costs. Naming the specific threat — "XSS can read `localStorage`, an httpOnly cookie it
+  cannot" — reads as understanding; "I'd add real auth" reads as a placeholder.
+
+### 3. Subscriptions
+
+`cameraAssignmentChanged` over SSE, so an operations room stays in sync.
+
+- **Benefit:** two operators looking at the same fleet never disagree about who can see what;
+  no reload required.
+- **Why it's a good talking point:** it is domain-aware rather than tech-led — stale access
+  state in a control room is a safety problem, not a UX annoyance. And because it was scoped
+  and then deliberately cut, it demonstrates judgment twice: knowing exactly where it plugs in
+  (a PubSub in the composition root, a publish after each mutation, SSE over WebSockets
+  because it is plain HTTP that reconnects itself) and knowing a flaky e2e suite costs more
+  than a live-update demo gains.
+
+### 4. Scale the list
+
+Pagination and server-side filtering; the client-side filter is honest at 7 cameras and wrong
+at 7,000.
+
+- **Benefit:** the page stays fast on a real fleet, and the browser stops downloading rows
+  nobody will look at.
+- **Why it's a good talking point:** it is a quantified self-critique. Stating where your own
+  solution breaks, with a number attached, is more convincing than any feature you could add —
+  and it invites the follow-up question you actually want ("how would you paginate a
+  many-to-many list?").
+
+### 5. Authorization as policy
+
+Roles and a `@auth` schema directive, once "can only manage your own" stops being the only
+rule.
+
+- **Benefit:** new rules arrive without editing resolvers, and enforcement stays consistent
+  because it is declared next to the field it protects.
+- **Why it's a good talking point:** it pays off a decision made in the first hour. Because
+  the mutations take an explicit `userId` rather than acting implicitly on "me", the guard is
+  already a real authorization check with a testable `FORBIDDEN` path — so this is an
+  evolution of existing code, not a rewrite. Declarative versus imperative authorization is
+  also a genuinely senior conversation.
+
+---
+
+## 10. Future work — what would make this genuinely good
+
+The list above hardens what exists. These three would make it a product.
+
+### 1. Live snapshots from the devices
+
+Replace the static product photo with the camera's current frame, fetched through Axis's own
+VAPIX HTTP API and proxied by the backend.
+
+- **Benefit:** the page stops being a directory and becomes an operations view — you can see
+  at a glance that a camera is pointed at a wall, obscured, or dark.
+- **Why it's a good talking point:** it uses Axis's actual device API, which shows you looked
+  at the product rather than only the test. It also opens real engineering questions with
+  right answers: device credentials must live server-side and never reach the browser;
+  snapshots need throttling and a short cache so 50 tiles do not hammer 50 devices; and the
+  fallback path already exists, because the UI is built to degrade when an image is missing.
+
+### 2. Delegated assignment for administrators
+
+Let an administrator grant and revoke camera access on behalf of another operator.
+
+- **Benefit:** matches how access is really managed — an operator does not usually provision
+  their own surveillance access; a supervisor does.
+- **Why it's a good talking point:** the schema already supports it. `assignCameraToUser`
+  takes an explicit `userId` precisely so it is not permanently welded to "me", so this is a
+  change to one authorization guard, not a schema migration and a client rewrite. It is the
+  cleanest available demonstration that the Phase 0 grilling paid for itself months early.
+
+### 3. An audit trail of access changes
+
+Record every assignment and revocation as an append-only event: who changed what, for whom,
+and when.
+
+- **Benefit:** answers "who could see this camera on 3 March, and who granted it?" — a
+  question that gets asked after an incident, and one the current mutable assignment set
+  cannot answer at all.
+- **Why it's a good talking point:** access to surveillance footage is security- and often
+  compliance-relevant, particularly for the EU public-sector customers Axis sells to, so this
+  is product thinking rather than feature-adding. Architecturally it is a good contrast too:
+  an append-only event log alongside mutable current state, where the same events can feed
+  both the audit view and the subscriptions in §9.3 — one mechanism, two payoffs.
