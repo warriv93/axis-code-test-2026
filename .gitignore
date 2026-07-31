@@ -1,1 +1,7 @@
 node_modules
+dist
+.playwright-mcp
+test-results
+playwright-report
+*.local
+.DS_Store
