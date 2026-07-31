@@ -12,6 +12,13 @@ steps. Instead of jumping straight to code, it enforces a gated sequence:
 
 > **Grill → Spec → Deep-modular architecture → SDD + TDD build → Verify → Human review**
 
+**I wrote this skill myself.** It lives in my personal skills repo —
+[github.com/warriv93/claude-skills](https://github.com/warriv93/claude-skills), with the
+source at [`skills/deep-plan.md`](https://github.com/warriv93/claude-skills/blob/main/skills/deep-plan.md).
+It came out of noticing which steps I skip under time pressure — pinning the spec, choosing
+the architecture before writing code, actually running the thing rather than trusting a green
+test suite — and encoding them as gates so they cannot be skipped.
+
 It's an _orchestrator_: rather than reinventing each step, it composes other skills
 (interrogation, domain modelling, deep-module design, ADR, test-driven development, bug
 diagnosis) and adds the connective tissue — cheap context-isolated slices, one commit per
@@ -50,12 +57,12 @@ got specified rather than discovered halfway through the build.
 Deep modules, narrow interfaces, dependencies at the edges. The specific goal was that every
 slice could be built and tested in isolation: repositories injected rather than imported,
 resolvers holding no logic, transport decoded once at the edge. Recorded in
-[PLAN.md](../PLAN.md) before implementation.
+[PLAN.md](PLAN.md) before implementation.
 
 ### Phase 2 — Spec-driven task list
 
 The architecture became a dependency-ordered list of 13 slices, each with its tests named
-first. That list is §6 of [PLAN.md](../PLAN.md), and it is what the build followed.
+first. That list is §6 of [PLAN.md](PLAN.md), and it is what the build followed.
 
 ### Phase 3 — TDD, one commit per passing slice
 

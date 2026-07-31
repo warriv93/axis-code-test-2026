@@ -32,7 +32,7 @@ Everything below is either a direct reading of that, or a decision recorded with
 | 7   | Vitest + RTL + one Playwright e2e                         | Backend tests only                         | Every layer proven rather than assumed — see §5                                                                                     |
 | 8   | Real Axis product photos, committed locally               | Hotlinked from axis.com                    | Works offline, keeps the e2e deterministic, and does not depend on someone else's CDN                                               |
 
-Full detail, including edge cases and failure modes: [`docs/SPEC-BRIEF.md`](docs/SPEC-BRIEF.md).
+Full detail, including edge cases and failure modes: [`docs/SPEC-BRIEF.md`](SPEC-BRIEF.md).
 
 ---
 

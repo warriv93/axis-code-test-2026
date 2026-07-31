@@ -50,7 +50,7 @@ assertion in the e2e run, and 7 seeded cameras with real Axis product photos.
 
 | Document                                 | What it covers                               |
 | ---------------------------------------- | -------------------------------------------- |
-| [PLAN.md](PLAN.md)                       | The plan agreed before any code was written  |
+| [docs/PLAN.md](docs/PLAN.md)             | The plan agreed before any code was written  |
 | [docs/TECHNICAL.md](docs/TECHNICAL.md)   | Architecture, decisions and trade-offs       |
 | [docs/PROCESS.md](docs/PROCESS.md)       | How it was built                             |
 | [docs/SPEC-BRIEF.md](docs/SPEC-BRIEF.md) | Requirements, edge cases, definition of done |
